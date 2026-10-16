@@ -231,7 +231,7 @@
                         foto: cols[3] || '',
                         mensagem: cols[4] || '',
                         chave_pix: cols[5] || '',
-                        cidade: cols[6] || 'BRASILIA'
+                        cidade: cols[6] || 'FORTALEZA'
                     });
                 }
             }
@@ -361,38 +361,40 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // --- GERADOR OFICIAL DE PIX EMV COM CRC16 ---
-        function gerarPixOficial(chave, nome, valor, cidade = 'BRASILIA') {
-            const formatarCampo = (id, valor) => {
-                const len = String(valor.length).padStart(2, '0');
-                return `${id}${len}${valor}`;
-            };
+        // --- GERADOR CORRETO DE PIX EMV COM COMPRIMENTOS DINÂMICOS ---
+        function gerarPixOficial(chave, nome, valor, cidade = 'FORTALEZA') {
+            const sanitizarChave = (ch) => ch.trim();
+            const formatarTamanho = (num) => String(num).padStart(2, '0');
 
-            // Tratar strings para os limites de tamanho e remoção de acentos
             const removerAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
             
+            const chaveLida = sanitizarChave(chave);
             const nomeFmt = removerAcentos(nome || 'ANIVERSARIANTE').substring(0, 25);
-            const cidadeFmt = removerAcentos(cidade || 'BRASILIA').substring(0, 15);
+            const cidadeFmt = removerAcentos(cidade || 'FORTALEZA').substring(0, 15);
             const valorFmt = parseFloat(valor || 0).toFixed(2);
 
-            const merchantAccountInfo = formatarCampo('00', 'br.gov.bcb.pix') + formatarCampo('01', chave.trim());
+            // Sub-campo da chave pix (ID 01)
+            const campoChave = '01' + formatarTamanho(chaveLida.length) + chaveLida;
+            // Campo GUI do Pix (ID 00)
+            const guiPix = '0014br.gov.bcb.pix';
+            // Campo 26 (Merchant Account Information)
+            const payload26 = guiPix + campoChave;
+            const campo26 = '26' + formatarTamanho(payload26.length) + payload26;
 
-            let payload = 
-                formatarCampo('00', '01') +
-                formatarCampo('26', merchantAccountInfo) +
-                formatarCampo('52', '0000') +
-                formatarCampo('53', '986') +
-                formatarCampo('54', valorFmt) +
-                formatarCampo('58', 'BR') +
-                formatarCampo('59', nomeFmt) +
-                formatarCampo('60', cidadeFmt) +
-                formatarCampo('62', formatarCampo('05', '***')) +
-                '6304';
+            const campo52 = '52040000';
+            const campo53 = '5303986';
+            const campo54 = '54' + formatarTamanho(valorFmt.length) + valorFmt;
+            const campo58 = '5802BR';
+            const campo59 = '59' + formatarTamanho(nomeFmt.length) + nomeFmt;
+            const campo60 = '60' + formatarTamanho(cidadeFmt.length) + cidadeFmt;
+            const campo62 = '62070503***';
 
-            // Cálculo do CRC16-CCITT (0xFFFF / 0x1021)
+            let payloadSemCrc = campo26 + campo52 + campo53 + campo54 + campo58 + campo59 + campo60 + campo62 + '6304';
+
+            // Cálculo CRC16-CCITT
             let crc = 0xFFFF;
-            for (let i = 0; i < payload.length; i++) {
-                crc ^= (payload.charCodeAt(i) << 8);
+            for (let i = 0; i < payloadSemCrc.length; i++) {
+                crc ^= (payloadSemCrc.charCodeAt(i) << 8);
                 for (let j = 0; j < 8; j++) {
                     if ((crc & 0x8000) !== 0) {
                         crc = (crc << 1) ^ 0x1021;
@@ -404,7 +406,7 @@
             }
 
             const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
-            return payload + crcHex;
+            return payloadSemCrc + crcHex;
         }
 
         // --- FLUXO DE PAGAMENTO & PIX ---
@@ -414,7 +416,6 @@
             document.getElementById('modal-sub-presente').innerText = `Valor: ${valorFmt}`;
             document.getElementById('modal-beneficiario-pix').innerText = `Chave: ${aniversarianteAtual.chave_pix}`;
 
-            // Geração do Pix Copia e Cola completo com valor predefinido e CRC16
             const payloadPix = gerarPixOficial(
                 aniversarianteAtual.chave_pix,
                 aniversarianteAtual.nome,
