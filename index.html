@@ -210,54 +210,58 @@
             }
         }
 
-        // --- PARSER DE CSV COM FILTRO DE CABEÇALHO ---
+        // --- PARSER DE CSV INTELIGENTE POR CABEÇALHO ---
         function parseCSV(text) {
             const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             const anivList = [];
             const presList = [];
 
             let section = 'aniversariantes';
+            let anivMap = {};
+            let presMap = {};
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
                 const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"\vert{}"$/g, ''));
-
                 const firstCol = (cols[0] || '').toLowerCase();
-                
-                // Mudar de seção ao encontrar 'presentes' ou 'aniversariante_id'
+
+                // Detectar mudança para aba/seção de presentes
                 if (firstCol === 'presentes' || firstCol === 'aniversariante_id') {
                     section = 'presentes';
+                    if (firstCol === 'aniversariante_id') {
+                        cols.forEach((col, idx) => { presMap[col.toLowerCase()] = idx; });
+                    }
                     continue;
                 }
 
-                // Ignorar a linha de cabeçalho da primeira aba
-                if (firstCol === 'id' || firstCol === 'aniversariantes' || firstCol === 'nome') {
+                // Mapear cabeçalho da primeira aba (Aniversariantes)
+                if (firstCol === 'id') {
+                    cols.forEach((col, idx) => { anivMap[col.toLowerCase()] = idx; });
                     continue;
                 }
 
                 if (section === 'aniversariantes') {
-                    // Validar se não é uma linha vazia ou cabeçalho residual
-                    if (cols[0] && cols[1] && firstCol !== 'id') {
+                    if (firstCol && firstCol !== 'id' && firstCol !== 'nome') {
+                        // Mapeamento dinâmico baseado na ordem correta da sua planilha
+                        // A: id, B: nome, C: data_aniversario, D: foto, E: mensagem, F: chave_pix
                         anivList.push({
-                            id: cols[0],
-                            nome: cols[1] || 'Aniversariante',
-                            foto: cols[2] || '',
-                            mensagem: cols[3] || '',
-                            chave_pix: cols[4] || '',
-                            tipo_chave: cols[5] || ''
+                            id: cols[anivMap['id'] ?? 0] || cols[0],
+                            nome: cols[anivMap['nome'] ?? 1] || cols[1] || 'Aniversariante',
+                            data_aniversario: cols[anivMap['data_aniversario'] ?? 2] || cols[2] || '',
+                            foto: cols[anivMap['foto'] ?? 3] || cols[3] || '',
+                            mensagem: cols[anivMap['mensagem'] ?? 4] || cols[4] || '',
+                            chave_pix: cols[anivMap['chave_pix'] ?? 5] || cols[5] || ''
                         });
                     }
                 } else if (section === 'presentes') {
-                    // Ignorar cabeçalhos da seção de presentes
-                    if (firstCol === 'aniversariante_id' || firstCol === 'nome_presente') continue;
-
-                    if (cols[0] && cols[1]) {
+                    if (firstCol && firstCol !== 'aniversariante_id' && firstCol !== 'nome_presente') {
+                        // A: aniversariante_id, B: nome_presente, C: valor, D: foto_presente, E: link_pagamento
                         presList.push({
-                            aniversariante_id: cols[0],
-                            nome_presente: cols[1],
-                            valor: cols[2] || '0',
-                            foto_presente: cols[3] || '',
-                            link_pagamento: cols[4] || ''
+                            aniversariante_id: cols[presMap['aniversariante_id'] ?? 0] || cols[0],
+                            nome_presente: cols[presMap['nome_presente'] ?? 1] || cols[1] || 'Presente',
+                            valor: cols[presMap['valor'] ?? 2] || cols[2] || '0',
+                            foto_presente: cols[presMap['foto_presente'] ?? 3] || cols[3] || '',
+                            link_pagamento: cols[presMap['link_pagamento'] ?? 4] || cols[4] || ''
                         });
                     }
                 }
@@ -290,7 +294,12 @@
                             <i class="fa-solid fa-gift"></i>
                         </div>
                     </div>
-                    <div class="space-y-1 w-full">
+                    <div class="space-y-1.5 w-full">
+                        ${aniv.data_aniversario ? `
+                            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-pink-600 bg-pink-50 px-2.5 py-0.5 rounded-full">
+                                <i class="fa-regular fa-calendar"></i> ${aniv.data_aniversario}
+                            </span>
+                        ` : ''}
                         <h3 class="font-bold text-lg text-slate-900 group-hover:text-pink-600 transition-colors">${aniv.nome}</h3>
                         <p class="text-xs text-slate-500 line-clamp-2">${aniv.mensagem || 'Comemorando mais um ano de vida!'}</p>
                     </div>
