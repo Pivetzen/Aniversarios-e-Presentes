@@ -184,22 +184,33 @@
 
     <!-- Script Principal -->
     <script>
-        const LINK_CSV_PADRAO = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQyCM4Ov2TW3qTz2Z6L-O_Iidp5zpoB_rqN4p9YJe-3EMdnCMfzA-Wy7yRmR63flW-62glHF9SVgc5b/pub?output=csv";
+        // Links das abas da Planilha em formato CSV público
+        const URL_ANIVERSARIANTES = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQyCM4Ov2TW3qTz2Z6L-O_Iidp5zpoB_rqN4p9YJe-3EMdnCMfzA-Wy7yRmR63flW-62glHF9SVgc5b/pub?gid=0&single=true&output=csv";
+        const URL_PRESENTES = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQyCM4Ov2TW3qTz2Z6L-O_Iidp5zpoB_rqN4p9YJe-3EMdnCMfzA-Wy7yRmR63flW-62glHF9SVgc5b/pub?gid=1078037004&single=true&output=csv";
 
         let aniversariantes = [];
         let presentes = [];
         let aniversarianteAtual = null;
 
-        // --- CARREGAMENTO DE DADOS DO GOOGLE SHEETS ---
+        // Imagem Padrão para Presente sem Foto Válida
+        const DEFAULT_GIFT_IMG = "https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=400&auto=format&fit=crop&q=80";
+
+        // --- CARREGAMENTO SIMULTÂNEO DAS DUAS ABAS ---
         async function carregarDados() {
             try {
                 document.getElementById('loading-home').classList.remove('hidden');
-                const response = await fetch(LINK_CSV_PADRAO);
-                const csvText = await response.text();
+                
+                // Busca concorrente das duas abas
+                const [resAniv, resPres] = await Promise.all([
+                    fetch(URL_ANIVERSARIANTES),
+                    fetch(URL_PRESENTES)
+                ]);
 
-                const parsedData = parseCSV(csvText);
-                aniversariantes = parsedData.aniversariantes;
-                presentes = parsedData.presentes;
+                const csvAniv = await resAniv.text();
+                const csvPres = await resPres.text();
+
+                aniversariantes = parseCSVAniversariantes(csvAniv);
+                presentes = parseCSVPresentes(csvPres);
 
                 document.getElementById('loading-home').classList.add('hidden');
                 renderizarAniversariantes();
@@ -210,64 +221,46 @@
             }
         }
 
-        // --- PARSER DE CSV INTELIGENTE POR CABEÇALHO ---
-        function parseCSV(text) {
+        // --- PARSER DA ABA ANIVERSARIANTES ---
+        function parseCSVAniversariantes(text) {
             const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            const anivList = [];
-            const presList = [];
+            const list = [];
 
-            let section = 'aniversariantes';
-            let anivMap = {};
-            let presMap = {};
-
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"\vert{}"$/g, ''));
-                const firstCol = (cols[0] || '').toLowerCase();
-
-                // Detectar mudança para aba/seção de presentes
-                if (firstCol === 'presentes' || firstCol === 'aniversariante_id') {
-                    section = 'presentes';
-                    if (firstCol === 'aniversariante_id') {
-                        cols.forEach((col, idx) => { presMap[col.toLowerCase()] = idx; });
-                    }
-                    continue;
-                }
-
-                // Mapear cabeçalho da primeira aba (Aniversariantes)
-                if (firstCol === 'id') {
-                    cols.forEach((col, idx) => { anivMap[col.toLowerCase()] = idx; });
-                    continue;
-                }
-
-                if (section === 'aniversariantes') {
-                    if (firstCol && firstCol !== 'id' && firstCol !== 'nome') {
-                        // Mapeamento dinâmico baseado na ordem correta da sua planilha
-                        // A: id, B: nome, C: data_aniversario, D: foto, E: mensagem, F: chave_pix
-                        anivList.push({
-                            id: cols[anivMap['id'] ?? 0] || cols[0],
-                            nome: cols[anivMap['nome'] ?? 1] || cols[1] || 'Aniversariante',
-                            data_aniversario: cols[anivMap['data_aniversario'] ?? 2] || cols[2] || '',
-                            foto: cols[anivMap['foto'] ?? 3] || cols[3] || '',
-                            mensagem: cols[anivMap['mensagem'] ?? 4] || cols[4] || '',
-                            chave_pix: cols[anivMap['chave_pix'] ?? 5] || cols[5] || ''
-                        });
-                    }
-                } else if (section === 'presentes') {
-                    if (firstCol && firstCol !== 'aniversariante_id' && firstCol !== 'nome_presente') {
-                        // A: aniversariante_id, B: nome_presente, C: valor, D: foto_presente, E: link_pagamento
-                        presList.push({
-                            aniversariante_id: cols[presMap['aniversariante_id'] ?? 0] || cols[0],
-                            nome_presente: cols[presMap['nome_presente'] ?? 1] || cols[1] || 'Presente',
-                            valor: cols[presMap['valor'] ?? 2] || cols[2] || '0',
-                            foto_presente: cols[presMap['foto_presente'] ?? 3] || cols[3] || '',
-                            link_pagamento: cols[presMap['link_pagamento'] ?? 4] || cols[4] || ''
-                        });
-                    }
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"\vert{}"$/g, ''));
+                if (cols[0] && cols[1] && cols[0].toLowerCase() !== 'id') {
+                    list.push({
+                        id: cols[0],
+                        nome: cols[1] || 'Aniversariante',
+                        data_aniversario: cols[2] || '',
+                        foto: cols[3] || '',
+                        mensagem: cols[4] || '',
+                        chave_pix: cols[5] || ''
+                    });
                 }
             }
+            return list;
+        }
 
-            return { aniversariantes: anivList, presentes: presList };
+        // --- PARSER DA ABA PRESENTES ---
+        function parseCSVPresentes(text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            const list = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"\vert{}"$/g, ''));
+                if (cols[0] && cols[1] && cols[0].toLowerCase() !== 'aniversariante_id') {
+                    const fotoValida = cols[3] && cols[3].startsWith('http') ? cols[3] : DEFAULT_GIFT_IMG;
+                    list.push({
+                        aniversariante_id: cols[0],
+                        nome_presente: cols[1],
+                        valor: cols[2] || '0',
+                        foto_presente: fotoValida,
+                        link_pagamento: cols[4] || ''
+                    });
+                }
+            }
+            return list;
         }
 
         // --- RENDERIZAR ANIVERSARIANTES ---
@@ -314,14 +307,15 @@
 
         // --- SELECIONAR ANIVERSARIANTE ---
         function selecionarAniversariante(id) {
-            aniversarianteAtual = aniversariantes.find(a => a.id == id);
+            aniversarianteAtual = aniversariantes.find(a => String(a.id).trim() === String(id).trim());
             if (!aniversarianteAtual) return;
 
             document.getElementById('perfil-nome').innerText = aniversarianteAtual.nome;
             document.getElementById('perfil-foto').src = aniversarianteAtual.foto || 'https://placehold.co/120x120/f43f5e/ffffff?text=Foto';
             document.getElementById('perfil-mensagem').innerText = aniversarianteAtual.mensagem || 'Selecione um presente abaixo.';
 
-            const presentesAniv = presentes.filter(p => p.aniversariante_id == id);
+            // Filtragem direta pelo ID
+            const presentesAniv = presentes.filter(p => String(p.aniversariante_id).trim() === String(id).trim());
             document.getElementById('contador-presentes').innerText = `${presentesAniv.length} item(ns)`;
 
             const gridPresentes = document.getElementById('grid-presentes');
@@ -344,7 +338,7 @@
                     cardPres.innerHTML = `
                         <div>
                             <div class="h-48 overflow-hidden bg-slate-100 relative">
-                                <img src="${pres.foto_presente || 'https://placehold.co/300x200/f43f5e/ffffff?text=Presente'}" onerror="this.src='https://placehold.co/300x200/f43f5e/ffffff?text=Presente'" alt="${pres.nome_presente}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                <img src="${pres.foto_presente}" onerror="this.src='${DEFAULT_GIFT_IMG}'" alt="${pres.nome_presente}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                                 <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-pink-600 shadow-md">
                                     ${precoFormatado}
                                 </div>
