@@ -361,23 +361,23 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // --- GERADOR CORRETO DE PIX EMV COM COMPRIMENTOS DINÂMICOS ---
+        // --- GERADOR OFICIAL DE PIX EMV COM TRATAMENTO DE CHAVE TELEFONE (+55) ---
         function gerarPixOficial(chave, nome, valor, cidade = 'FORTALEZA') {
-            const sanitizarChave = (ch) => ch.trim();
             const formatarTamanho = (num) => String(num).padStart(2, '0');
-
             const removerAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
             
-            const chaveLida = sanitizarChave(chave);
+            let chaveLimpa = chave.trim();
+            // Se for chave celular com 10 ou 11 dígitos sem o +55, adiciona o +55 do DDI
+            if (/^\d{10,11}$/.test(chaveLimpa)) {
+                chaveLimpa = '+55' + chaveLimpa;
+            }
+
             const nomeFmt = removerAcentos(nome || 'ANIVERSARIANTE').substring(0, 25);
             const cidadeFmt = removerAcentos(cidade || 'FORTALEZA').substring(0, 15);
             const valorFmt = parseFloat(valor || 0).toFixed(2);
 
-            // Sub-campo da chave pix (ID 01)
-            const campoChave = '01' + formatarTamanho(chaveLida.length) + chaveLida;
-            // Campo GUI do Pix (ID 00)
+            const campoChave = '01' + formatarTamanho(chaveLimpa.length) + chaveLimpa;
             const guiPix = '0014br.gov.bcb.pix';
-            // Campo 26 (Merchant Account Information)
             const payload26 = guiPix + campoChave;
             const campo26 = '26' + formatarTamanho(payload26.length) + payload26;
 
