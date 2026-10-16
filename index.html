@@ -131,7 +131,7 @@
                 <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                            <i class="fa-brands fa-pix text-emerald-600 text-base"></i> Pix Automático
+                            <i class="fa-brands fa-pix text-emerald-600 text-base"></i> Pix Copia e Cola
                         </span>
                         <span class="text-xs text-slate-400 truncate max-w-[180px]" id="modal-beneficiario-pix">Chave Pix</span>
                     </div>
@@ -145,7 +145,7 @@
 
                     <!-- Copia e Cola -->
                     <div class="space-y-1">
-                        <label class="text-[11px] font-medium text-slate-500">Pix Copia e Cola / Chave:</label>
+                        <label class="text-[11px] font-medium text-slate-500">Pix Copia e Cola (Com valor predefinido):</label>
                         <div class="flex items-center gap-2">
                             <input type="text" id="input-pix-copia-cola" readonly class="w-full bg-white border border-slate-200 text-slate-600 text-xs rounded-xl px-3 py-2.5 focus:outline-none font-mono select-all">
                             <button onclick="copiarPix()" id="btn-copiar" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-md shadow-pink-200 transition-all flex-shrink-0">
@@ -230,7 +230,8 @@
                         data_aniversario: cols[2] || '',
                         foto: cols[3] || '',
                         mensagem: cols[4] || '',
-                        chave_pix: cols[5] || ''
+                        chave_pix: cols[5] || '',
+                        cidade: cols[6] || 'BRASILIA'
                     });
                 }
             }
@@ -360,6 +361,52 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        // --- GERADOR OFICIAL DE PIX EMV COM CRC16 ---
+        function gerarPixOficial(chave, nome, valor, cidade = 'BRASILIA') {
+            const formatarCampo = (id, valor) => {
+                const len = String(valor.length).padStart(2, '0');
+                return `${id}${len}${valor}`;
+            };
+
+            // Tratar strings para os limites de tamanho e remoção de acentos
+            const removerAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+            
+            const nomeFmt = removerAcentos(nome || 'ANIVERSARIANTE').substring(0, 25);
+            const cidadeFmt = removerAcentos(cidade || 'BRASILIA').substring(0, 15);
+            const valorFmt = parseFloat(valor || 0).toFixed(2);
+
+            const merchantAccountInfo = formatarCampo('00', 'br.gov.bcb.pix') + formatarCampo('01', chave.trim());
+
+            let payload = 
+                formatarCampo('00', '01') +
+                formatarCampo('26', merchantAccountInfo) +
+                formatarCampo('52', '0000') +
+                formatarCampo('53', '986') +
+                formatarCampo('54', valorFmt) +
+                formatarCampo('58', 'BR') +
+                formatarCampo('59', nomeFmt) +
+                formatarCampo('60', cidadeFmt) +
+                formatarCampo('62', formatarCampo('05', '***')) +
+                '6304';
+
+            // Cálculo do CRC16-CCITT (0xFFFF / 0x1021)
+            let crc = 0xFFFF;
+            for (let i = 0; i < payload.length; i++) {
+                crc ^= (payload.charCodeAt(i) << 8);
+                for (let j = 0; j < 8; j++) {
+                    if ((crc & 0x8000) !== 0) {
+                        crc = (crc << 1) ^ 0x1021;
+                    } else {
+                        crc = crc << 1;
+                    }
+                    crc &= 0xFFFF;
+                }
+            }
+
+            const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
+            return payload + crcHex;
+        }
+
         // --- FLUXO DE PAGAMENTO & PIX ---
         function abrirModalPagamento(pres) {
             document.getElementById('modal-titulo-presente').innerText = pres.nome_presente;
@@ -367,14 +414,20 @@
             document.getElementById('modal-sub-presente').innerText = `Valor: ${valorFmt}`;
             document.getElementById('modal-beneficiario-pix').innerText = `Chave: ${aniversarianteAtual.chave_pix}`;
 
-            // Correção para exibir a chave Pix exata de forma limpa e compatível com leitura de chave direta ou cópia
-            const chavePix = aniversarianteAtual.chave_pix;
-            document.getElementById('input-pix-copia-cola').value = chavePix;
+            // Geração do Pix Copia e Cola completo com valor predefinido e CRC16
+            const payloadPix = gerarPixOficial(
+                aniversarianteAtual.chave_pix,
+                aniversarianteAtual.nome,
+                pres.valor,
+                aniversarianteAtual.cidade
+            );
+
+            document.getElementById('input-pix-copia-cola').value = payloadPix;
 
             const qrContainer = document.getElementById('qrcode-container');
             qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
-                text: chavePix,
+                text: payloadPix,
                 width: 160,
                 height: 160,
                 colorDark: "#0f172a",
@@ -402,14 +455,14 @@
             const input = document.getElementById('input-pix-copia-cola');
             input.select();
             input.setSelectionRange(0, 99999);
-            document.execCommand('copy');
+            navigator.clipboard.writeText(input.value);
 
             const btn = document.getElementById('btn-copiar');
             btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Copiado!';
             btn.classList.remove('bg-pink-600', 'hover:bg-pink-700');
             btn.classList.add('bg-emerald-600');
 
-            mostrarToast("Chave Pix copiada com sucesso!");
+            mostrarToast("Pix Copia e Cola completo copiado!");
 
             setTimeout(() => {
                 btn.innerHTML = '<i class="fa-solid fa-copy mr-1"></i> Copiar';
