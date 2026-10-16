@@ -367,19 +367,24 @@
             const removerAcentos = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
             
             let chaveLimpa = chave.trim();
+            // Se for telefone sem DDI, adiciona o +55 para garantir compatibilidade
             if (/^\d{10,11}$/.test(chaveLimpa)) {
                 chaveLimpa = '+55' + chaveLimpa;
             }
-
+        
             const nomeFmt = removerAcentos(nome || 'ANIVERSARIANTE').substring(0, 25);
             const cidadeFmt = removerAcentos(cidade || 'FORTALEZA').substring(0, 15);
             const valorFmt = parseFloat(valor || 0).toFixed(2);
-
+        
+            // 1. Monta o sub-campo da chave (Tag 01 + tamanho + chave)
             const campoChave = '01' + formatarTamanho(chaveLimpa.length) + chaveLimpa;
-            const guiPix = '0014br.gov.bcb.pix'; // OBRIGATÓRIO EM MINÚSCULO
+            
+            // 2. Monta a Tag 26 (GUI do Pix + Chave) com o tamanho calculado automaticamente
+            const guiPix = '0014br.gov.bcb.pix'; // Obrigatório em minúsculas
             const payload26 = guiPix + campoChave;
             const campo26 = '26' + formatarTamanho(payload26.length) + payload26;
-
+        
+            // 3. Demais campos fixos e variáveis
             const campo52 = '52040000';
             const campo53 = '5303986';
             const campo54 = '54' + formatarTamanho(valorFmt.length) + valorFmt;
@@ -387,10 +392,11 @@
             const campo59 = '59' + formatarTamanho(nomeFmt.length) + nomeFmt;
             const campo60 = '60' + formatarTamanho(cidadeFmt.length) + cidadeFmt;
             const campo62 = '62070503***';
-
-            let payloadSemCrc = campo26 + campo52 + campo53 + campo54 + campo58 + campo59 + campo60 + campo62 + '6304';
-
-            // Cálculo CRC16-CCITT Correto
+        
+            // 4. Junta tudo para calcular o CRC16
+            let payloadSemCrc = '000201' + campo26 + campo52 + campo53 + campo54 + campo58 + campo59 + campo60 + campo62 + '6304';
+        
+            // 5. Cálculo exato do CRC16-CCITT
             let crc = 0xFFFF;
             for (let i = 0; i < payloadSemCrc.length; i++) {
                 crc ^= (payloadSemCrc.charCodeAt(i) << 8);
@@ -403,7 +409,7 @@
                     crc &= 0xFFFF;
                 }
             }
-
+        
             const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
             return payloadSemCrc + crcHex;
         }
