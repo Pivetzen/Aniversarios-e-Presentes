@@ -220,7 +220,7 @@
         function parseCSVAniversariantes(text) {
             const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             const list = [];
-
+        
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"\vert{}"$/g, ''));
                 if (cols[0] && cols[1] && cols[0].toLowerCase() !== 'id') {
@@ -231,7 +231,8 @@
                         foto: cols[3] || '',
                         mensagem: cols[4] || '',
                         chave_pix: cols[5] || '',
-                        cidade: cols[6] || 'FORTALEZA'
+                        cidade: cols[6] || 'FORTALEZA',
+                        nome_pix: cols[7] || cols[1] // Se não preencher o nome_pix, usa o nome normal como fallback
                     });
                 }
             }
@@ -421,13 +422,14 @@
             document.getElementById('modal-sub-presente').innerText = `Valor: ${valorFmt}`;
             document.getElementById('modal-beneficiario-pix').innerText = `Chave: ${aniversarianteAtual.chave_pix}`;
 
+            // Dentro da função abrirModalPagamento(pres)
             const payloadPix = gerarPixOficial(
                 aniversarianteAtual.chave_pix,
-                aniversarianteAtual.nome,
+                aniversarianteAtual.nome_pix, // <-- Alterado aqui para usar o nome correto da conta bancária
                 pres.valor,
                 aniversarianteAtual.cidade
             );
-
+            
             document.getElementById('input-pix-copia-cola').value = payloadPix;
 
             const qrContainer = document.getElementById('qrcode-container');
