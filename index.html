@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Presentes de Aniversário</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- QRCode Generator Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        .confetti-bg {
+            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fae8ff 100%);
+        }
+    </style>
+</head>
+<body class="confetti-bg min-h-full flex flex-col text-slate-800">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-pink-100">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="voltarParaHome()">
+                <div class="bg-gradient-to-tr from-pink-500 to-rose-400 text-white p-2.5 rounded-2xl shadow-md shadow-pink-200">
+                    <i class="fa-solid fa-cake-candles text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-slate-900 leading-tight">Aniversários & Presentes</h1>
+                    <p class="text-xs text-slate-500">Integrado com Google Sheets</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="abrirConfiguracao()" class="text-xs font-medium bg-pink-50 text-pink-600 hover:bg-pink-100 transition-colors px-3 py-2 rounded-xl border border-pink-200 flex items-center space-x-1.5 shadow-sm">
+                    <i class="fa-solid fa-table"></i>
+                    <span class="hidden sm:inline">Configurar Planilha</span>
+                </button>
+                <button onclick="abrirGuiaGithub()" class="text-xs font-medium bg-slate-900 text-white hover:bg-slate-800 transition-colors px-3 py-2 rounded-xl shadow-sm flex items-center space-x-1.5">
+                    <i class="fa-brands fa-github"></i>
+                    <span class="hidden sm:inline">Deploy no GitHub</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-8">
+
+        <!-- TELA 1: Seleção de Aniversariantes -->
+        <section id="view-home" class="space-y-6">
+            <div class="text-center max-w-xl mx-auto space-y-2 py-4">
+                <span class="bg-pink-100 text-pink-600 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">🎉 Quem vamos celebrar?</span>
+                <h2 id="titulo-home" class="text-3xl font-extrabold text-slate-900">Aniversariantes de Hoje</h2>
+                <p id="subtitulo-home" class="text-slate-600 text-sm">Selecione o aniversariante abaixo para ver a lista de sugestões de presentes.</p>
+            </div>
+
+            <!-- Botões de Filtro (Hoje / Todos) -->
+            <div class="flex justify-center items-center gap-2 pb-2">
+                <button id="btn-filtro-hoje" onclick="alternarFiltroData('hoje')" class="text-xs font-semibold px-4 py-2 rounded-full transition-all bg-pink-600 text-white shadow-md shadow-pink-200">
+                    <i class="fa-solid fa-calendar-day mr-1.5"></i> Aniversariantes de Hoje
+                </button>
+                <button id="btn-filtro-todos" onclick="alternarFiltroData('todos')" class="text-xs font-semibold px-4 py-2 rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50">
+                    <i class="fa-solid fa-users mr-1.5"></i> Ver Todos
+                </button>
+            </div>
+
+            <!-- Carregando Status -->
+            <div id="loading-home" class="flex flex-col items-center justify-center py-12 space-y-3">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-600"></div>
+                <p class="text-sm text-slate-500">Sincronizando com o Google Sheets...</p>
+            </div>
+
+            <!-- Grid de Aniversariantes -->
+            <div id="grid-aniversariantes" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                <!-- Preenchido via JavaScript -->
+            </div>
+
+            <!-- Alerta se vazio -->
+            <div id="empty-aniversariantes" class="hidden text-center py-12 bg-white rounded-3xl border border-pink-100 shadow-sm p-8 max-w-md mx-auto space-y-3">
+                <i class="fa-solid fa-cake-candles text-4xl text-pink-300 mb-1"></i>
+                <h3 class="text-lg font-bold text-slate-700">Nenhum aniversariante para hoje</h3>
+                <p class="text-sm text-slate-500">Não encontramos aniversariantes cadastrados para a data de hoje na sua planilha. Clique em "Ver Todos" para conferir os cadastrados.</p>
+                <button onclick="alternarFiltroData('todos')" class="mt-2 text-xs bg-pink-50 text-pink-600 font-semibold px-4 py-2 rounded-xl border border-pink-200 hover:bg-pink-100 transition-colors">
+                    Ver todos os aniversariantes
+                </button>
+            </div>
+        </section>
+
+        <!-- TELA 2: Sugestões de Presentes -->
+        <section id="view-presentes" class="hidden space-y-6">
+            <!-- Breadcrumb / Voltar -->
+            <div>
+                <button onclick="voltarParaHome()" class="inline-flex items-center text-sm font-medium text-pink-600 hover:text-pink-700 bg-white/80 hover:bg-white px-3 py-1.5 rounded-xl border border-pink-100 shadow-sm transition-all">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Voltar aos Aniversariantes
+                </button>
+            </div>
+
+            <!-- Perfil do Aniversariante Header -->
+            <div id="perfil-header" class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-pink-100 flex flex-col sm:flex-row items-center gap-6 relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 opacity-10 text-pink-500">
+                    <i class="fa-solid fa-gift text-9xl"></i>
+                </div>
+                <div class="relative">
+                    <img id="perfil-foto" src="https://placehold.co/120x120/f43f5e/ffffff?text=Foto" alt="Aniversariante" class="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-pink-100 shadow-md">
+                    <div class="absolute bottom-0 right-0 bg-pink-600 text-white p-2 rounded-full shadow-md text-xs">
+                        <i class="fa-solid fa-cake-candles"></i>
+                    </div>
+                </div>
+                <div class="text-center sm:text-left space-y-2 z-10">
+                    <span class="bg-pink-100 text-pink-600 text-xs font-bold px-3 py-1 rounded-full">Aniversariante</span>
+                    <h2 id="perfil-nome" class="text-2xl sm:text-3xl font-extrabold text-slate-900">Nome do Aniversariante</h2>
+                    <p id="perfil-mensagem" class="text-sm text-slate-600 max-w-lg">Obrigado por celebrar esse momento especial comigo! Escolha um presente abaixo.</p>
+                </div>
+            </div>
+
+            <!-- Título Presentes -->
+            <div class="flex items-center justify-between pt-2">
+                <h3 class="text-xl font-bold text-slate-800">Sugestões de Presentes</h3>
+                <span id="contador-presentes" class="text-xs font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-pink-100">0 itens</span>
+            </div>
+
+            <!-- Grid de Presentes -->
+            <div id="grid-presentes" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                <!-- Preenchido via JavaScript -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL DE PAGAMENTO / PIX -->
+    <div id="modal-pagamento" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-pink-100 relative space-y-6 transform transition-all">
+            <!-- Botão Fechar -->
+            <button onclick="fecharModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- Título Modal -->
+            <div class="text-center space-y-1">
+                <div class="inline-block bg-pink-100 text-pink-600 p-3 rounded-2xl mb-1 shadow-inner">
+                    <i class="fa-solid fa-gift text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-900" id="modal-titulo-presente">Presentear</h3>
+                <p class="text-sm text-slate-500" id="modal-sub-presente">Valor: R$ 0,00</p>
+            </div>
+
+            <!-- Seção Pix -->
+            <div class="space-y-4">
+                <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                            <i class="fa-brands fa-pix text-emerald-600 text-base"></i> Pix Automático
+                        </span>
+                        <span class="text-xs text-slate-400 truncate max-w-[180px]" id="modal-beneficiario-pix">Chave Pix</span>
+                    </div>
+
+                    <!-- QR Code Container -->
+                    <div class="flex justify-center py-2">
+                        <div id="qrcode-container" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
+                            <!-- Gerado via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Copia e Cola -->
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-medium text-slate-500">Pix Copia e Cola:</label>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="input-pix-copia-cola" readonly class="w-full bg-white border border-slate-200 text-slate-600 text-xs rounded-xl px-3 py-2.5 focus:outline-none font-mono select-all">
+                            <button onclick="copiarPix()" id="btn-copiar" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-md shadow-pink-200 transition-all flex-shrink-0">
+                                <i class="fa-solid fa-copy mr-1"></i> Copiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botão Link de Pagamento Externo (Opcional) -->
+                <div id="container-link-pagamento" class="hidden">
+                    <a id="link-pagamento-externo" href="#" target="_blank" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-2xl text-sm shadow-md shadow-blue-200 flex items-center justify-center space-x-2 transition-all">
+                        <i class="fa-solid fa-credit-card"></i>
+                        <span>Pagar com Cartão / Link Externo</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Rodapé Modal -->
+            <div class="text-center pt-2">
+                <p class="text-[11px] text-slate-400">O valor vai direto para a conta bancária do aniversariante.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÃO / PLANILHA -->
+    <div id="modal-config" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-pink-100 relative space-y-6 max-h-[90vh] overflow-y-auto">
+            <button onclick="fecharConfiguracao()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="space-y-2">
+                <span class="bg-pink-100 text-pink-600 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">Integração Google Sheets</span>
+                <h3 class="text-2xl font-extrabold text-slate-900">Configurar Link CSV da Planilha</h3>
+                <p class="text-sm text-slate-600">Insira o link público CSV da sua planilha do Google Sheets.</p>
+            </div>
+
+            <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/80">
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-700">Link CSV do Google Sheets:</label>
+                    <input type="text" id="input-url-csv" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" class="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-pink-500 font-mono">
+                </div>
+                <button onclick="salvarConfiguracaoURL()" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs shadow-md shadow-pink-200 transition-all">
+                    Salvar e Carregar Planilha
+                </button>
+            </div>
+
+            <!-- Guia de Abas e Colunas -->
+            <div class="space-y-3 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                <h4 class="font-bold text-slate-800 text-sm">📋 Como estruturar a sua planilha única:</h4>
+                <div class="bg-pink-50/50 p-3 rounded-xl border border-pink-100 space-y-1">
+                    <p class="font-bold text-pink-800">Aba 1 (Nomeada como "Aniversariantes"):</p>
+                    <p class="font-mono bg-white p-1.5 rounded border text-[11px]">id | nome | data_aniversario | foto | mensagem | chave_pix | tipo_chave</p>
+                    <p class="text-[10px] text-slate-500">Obs: formato de data <span class="font-semibold">DD/MM</span> (ex: 25/12).</p>
+                </div>
+                <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-1">
+                    <p class="font-bold text-indigo-800">Aba 2 (Nomeada como "Presentes"):</p>
+                    <p class="font-mono bg-white p-1.5 rounded border text-[11px]">aniversariante_id | nome_presente | valor | foto_presente | link_pagamento</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE GUIA GITHUB PAGES -->
+    <div id="modal-github" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative space-y-6 max-h-[90vh] overflow-y-auto">
+            <button onclick="fecharGuiaGithub()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="space-y-2">
+                <span class="bg-slate-900 text-white text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">Hospedagem Gratuita</span>
+                <h3 class="text-2xl font-extrabold text-slate-900">Como publicar no GitHub Pages</h3>
+                <p class="text-sm text-slate-600">Siga estes passos simples para colocar seu Web App no ar em minutos:</p>
+            </div>
+
+            <div class="space-y-4 text-xs text-slate-700">
+                <div class="flex items-start space-x-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div class="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold flex-shrink-0">1</div>
+                    <div class="space-y-1">
+                        <p class="font-bold text-slate-900">Criar um repositório no GitHub</p>
+                        <p>Acesse o <a href="https://github.com" target="_blank" class="text-pink-600 underline font-medium">GitHub</a>, crie um novo repositório público (ex: <code class="bg-white px-1 py-0.5 rounded border">aniversarios-app</code>).</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div class="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold flex-shrink-0">2</div>
+                    <div class="space-y-1">
+                        <p class="font-bold text-slate-900">Adicionar o arquivo <code class="bg-white px-1.5 py-0.5 rounded border">index.html</code></p>
+                        <p>Clique em <b>Add file > Create new file</b> no seu repositório. Nomeie o arquivo exatamente como <code class="bg-pink-50 text-pink-600 font-semibold px-1 py-0.5 rounded border">index.html</code>.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div class="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold flex-shrink-0">3</div>
+                    <div class="space-y-1">
+                        <p class="font-bold text-slate-900">Colar o código</p>
+                        <p>Copie todo o código deste arquivo, cole dentro do editor do GitHub e clique em <b>Commit changes...</b> no final da página.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div class="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold flex-shrink-0">4</div>
+                    <div class="space-y-1">
+                        <p class="font-bold text-slate-900">Ativar o GitHub Pages</p>
+                        <p>Vá na aba <b>Settings</b> > menu lateral esquerdo <b>Pages</b>. Em <i>Build and deployment > Branch</i>, selecione <b>main</b> (ou master) e clique em <b>Save</b>.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-pink-50 p-4 rounded-2xl border border-pink-100 text-center space-y-1">
+                <p class="font-bold text-pink-900 text-xs">✨ Pronto!</p>
+                <p class="text-xs text-pink-700">Em cerca de 1 minuto o GitHub fornecerá o link público definitivo do seu Web App.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <main-footer class="mt-auto">
+        <footer class="py-6 text-center text-xs text-slate-400 border-t border-slate-200/60">
+            <p>Feito com carinho para celebrar momentos inesquecíveis ✨</p>
+        </footer>
+    </main-footer>
+
+    <!-- Toast de Notificação -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-slate-900 text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-2">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-msg">Ação realizada com sucesso!</span>
+    </div>
+
+    <!-- Script Principal -->
+    <script>
+        const LINK_CSV_PADRAO = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQyCM4Ov2TW3qTz2Z6L-O_Iidp5zpoB_rqN4p9YJe-3EMdnCMfzA-Wy7yRmR63flW-62glHF9SVgc5b/pub?output=csv";
+
+        const hojeStr = (() => {
+            const d = new Date();
+            const dia = String(d.getDate()).padStart(2, '0');
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            return `${dia}/${mes}`;
+        })();
+
+        let aniversariantes = [];
+        let presentes = [];
+        let aniversarianteAtual = null;
+        let modoFiltro = 'hoje'; // 'hoje' ou 'todos'
+
+        // --- CARREGAMENTO DE DADOS DO GOOGLE SHEETS ---
+        async function carregarDados() {
+            let urlCsv = localStorage.getItem('url_csv_sheets');
+            if (!urlCsv) {
+                urlCsv = LINK_CSV_PADRAO;
+                localStorage.setItem('url_csv_sheets', urlCsv);
+            }
+
+            try {
+                document.getElementById('loading-home').classList.remove('hidden');
+                const response = await fetch(urlCsv);
+                const csvText = await response.text();
+
+                const parsedData = parseMultiSheetCSV(csvText);
+                aniversariantes = parsedData.aniversariantes;
+                presentes = parsedData.presentes;
+
+                document.getElementById('loading-home').classList.add('hidden');
+                renderizarAniversariantes();
+            } catch (e) {
+                console.error("Erro ao carregar do Google Sheets:", e);
+                document.getElementById('loading-home').classList.add('hidden');
+                mostrarToast("Erro ao carregar os dados da planilha. Verifique o link.");
+            }
+        }
+
+        // --- PARSER PARA GOOGLE SHEETS PUBLICADO EM WEB (MULTI-TAB OU SIMPLES) ---
+        function parseMultiSheetCSV(text) {
+            // O Google Sheets publicado via pub?output=csv às vezes exporta apenas a primeira aba
+            // Ou separa por blocos. Vamos tratar a robustez de leitura de linhas.
+            const lines = text.split('\n');
+            let currentSection = 'aniversariantes';
+            const anivList = [];
+            const presList = [];
+
+            let headers = [];
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (!line) continue;
+
+                if (line.toLowerCase().includes('aniversariantes') || line.toLowerCase().includes('id,nome')) {
+                    if (line.toLowerCase().includes('presente')) {
+                        currentSection = 'presentes';
+                        headers = [];
+                        continue;
+                    }
+                    if (line.toLowerCase().includes('id,nome')) {
+                        headers = line.split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+                        currentSection = 'aniversariantes';
+                        continue;
+                    }
+                }
+
+                if (line.toLowerCase().includes('presentes') || line.toLowerCase().includes('aniversariante_id')) {
+                    headers = line.split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+                    currentSection = 'presentes';
+                    continue;
+                }
+
+                const currentLine = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                if (headers.length === 0) {
+                    // Se não achou cabeçalho explícito, define por posição padrão
+                    if (currentSection === 'aniversariantes') {
+                        headers = ['id', 'nome', 'data_aniversario', 'foto', 'mensagem', 'chave_pix', 'tipo_chave'];
+                    } else {
+                        headers = ['aniversariante_id', 'nome_presente', 'valor', 'foto_presente', 'link_pagamento'];
+                    }
+                }
+
+                const obj = {};
+                for (let j = 0; j < headers.length; j++) {
+                    let val = currentLine[j] ? currentLine[j].trim() : '';
+                    val = val.replace(/^"|"$/g, '');
+                    obj[headers[j]] = val;
+                }
+
+                if (currentSection === 'aniversariantes' && obj.id && obj.nome) {
+                    anivList.push(obj);
+                } else if (currentSection === 'presentes' && obj.aniversariante_id && obj.nome_presente) {
+                    presList.push(obj);
+                }
+            }
+
+            // Fallback caso o formato venha linear simples sem separador de aba
+            if (anivList.length === 0) {
+                // Tentar ler tudo como aniversariante ou usar parsing direto
+                return parseSimplesCSV(text);
+            }
+
+            return { aniversariantes: anivList, presentes: presList };
+        }
+
+        function parseSimplesCSV(text) {
+            const lines = text.trim().split('\n');
+            if (lines.length < 2) return { aniversariantes: [], presentes: [] };
+            
+            let headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+            const anivList = [];
+            const presList = [];
+
+            let isPresentes = false;
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                if (line.toLowerCase().includes('presentes') || line.toLowerCase().includes('aniversariante_id')) {
+                    isPresentes = true;
+                    continue;
+                }
+
+                const currentLine = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                const obj = {};
+                for (let j = 0; j < headers.length; j++) {
+                    let val = currentLine[j] ? currentLine[j].trim() : '';
+                    val = val.replace(/^"|"$/g, '');
+                    obj[headers[j]] = val;
+                }
+
+                if (!isPresentes && obj.id) {
+                    anivList.push(obj);
+                } else if (isPresentes || obj.aniversariante_id) {
+                    presList.push(obj);
+                }
+            }
+            return { aniversariantes: anivList, presentes: presList };
+        }
+
+        // --- ALTERNAR FILTRO (HOJE / TODOS) ---
+        function alternarFiltroData(tipo) {
+            modoFiltro = tipo;
+            const btnHoje = document.getElementById('btn-filtro-hoje');
+            const btnTodos = document.getElementById('btn-filtro-todos');
+            const titulo = document.getElementById('titulo-home');
+            const sub = document.getElementById('subtitulo-home');
+
+            if (tipo === 'hoje') {
+                btnHoje.className = "text-xs font-semibold px-4 py-2 rounded-full transition-all bg-pink-600 text-white shadow-md shadow-pink-200";
+                btnTodos.className = "text-xs font-semibold px-4 py-2 rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50";
+                titulo.innerText = "Aniversariantes de Hoje";
+                sub.innerText = "Celebre com quem está fazendo aniversário hoje!";
+            } else {
+                btnTodos.className = "text-xs font-semibold px-4 py-2 rounded-full transition-all bg-pink-600 text-white shadow-md shadow-pink-200";
+                btnHoje.className = "text-xs font-semibold px-4 py-2 rounded-full transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-50";
+                titulo.innerText = "Todos os Aniversariantes";
+                sub.innerText = "Confira todos os aniversariantes cadastrados na base.";
+            }
+            renderizarAniversariantes();
+        }
+
+        // --- RENDERIZAR TELA INICIAL ---
+        function renderizarAniversariantes() {
+            const grid = document.getElementById('grid-aniversariantes');
+            const emptyState = document.getElementById('empty-aniversariantes');
+            grid.innerHTML = '';
+
+            let listaFiltrada = aniversariantes;
+            if (modoFiltro === 'hoje') {
+                listaFiltrada = aniversariantes.filter(a => {
+                    if (!a.data_aniversario) return false;
+                    return a.data_aniversario.trim() === hojeStr;
+                });
+            }
+
+            if (!listaFiltrada || listaFiltrada.length === 0) {
+                if (modoFiltro === 'hoje') {
+                    emptyState.classList.remove('hidden');
+                    return;
+                } else {
+                    grid.innerHTML = `<div class="col-span-full text-center py-12 bg-white rounded-3xl border border-pink-100 shadow-sm p-8"><p class="text-sm text-slate-500">Nenhum aniversariante encontrado.</p></div>`;
+                    emptyState.classList.add('hidden');
+                    return;
+                }
+            }
+
+            emptyState.classList.add('hidden');
+            listaFiltrada.forEach(aniv => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-3xl p-6 shadow-sm border border-pink-100 hover:shadow-xl hover:border-pink-300 transition-all duration-300 flex flex-col items-center text-center space-y-4 group cursor-pointer";
+                card.onclick = () => selecionarAniversariante(aniv.id);
+
+                card.innerHTML = `
+                    <div class="relative pt-2">
+                        <img src="${aniv.foto || 'https://placehold.co/150x150/f43f5e/ffffff?text=Foto'}" onerror="this.src='https://placehold.co/150x150/f43f5e/ffffff?text=Foto'" alt="${aniv.nome}" class="w-24 h-24 rounded-full object-cover border-4 border-pink-50 shadow-md group-hover:scale-105 transition-transform duration-300">
+                        <div class="absolute bottom-0 right-0 bg-pink-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md">
+                            <i class="fa-solid fa-gift"></i>
+                        </div>
+                    </div>
+                    <div class="space-y-1 w-full">
+                        <div class="flex items-center justify-center gap-1.5 text-[11px] font-medium text-pink-600 bg-pink-50 py-0.5 px-2.5 rounded-full w-max mx-auto mb-1">
+                            <i class="fa-solid fa-calendar-day"></i> ${aniv.data_aniversario || 'Data livre'}
+                        </div>
+                        <h3 class="font-bold text-lg text-slate-900 group-hover:text-pink-600 transition-colors">${aniv.nome}</h3>
+                        <p class="text-xs text-slate-500 line-clamp-2">${aniv.mensagem || 'Comemorando mais um ano de vida!'}</p>
+                    </div>
+                    <button class="w-full mt-2 bg-pink-50 hover:bg-pink-600 text-pink-600 hover:text-white font-semibold py-2.5 px-4 rounded-2xl text-xs transition-all duration-300 flex items-center justify-center space-x-2 border border-pink-100 group-hover:border-pink-600">
+                        <span>Ver Presentes</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // --- SELECIONAR ANIVERSARIANTE ---
+        function selecionarAniversariante(id) {
+            aniversarianteAtual = aniversariantes.find(a => a.id == id);
+            if (!aniversarianteAtual) return;
+
+            document.getElementById('perfil-nome').innerText = aniversarianteAtual.nome;
+            document.getElementById('perfil-foto').src = aniversarianteAtual.foto || 'https://placehold.co/120x120/f43f5e/ffffff?text=Foto';
+            document.getElementById('perfil-mensagem').innerText = aniversarianteAtual.mensagem || 'Selecione um presente abaixo.';
+
+            const presentesAniv = presentes.filter(p => p.aniversariante_id == id);
+            document.getElementById('contador-presentes').innerText = `${presentesAniv.length} item(ns)`;
+
+            const gridPresentes = document.getElementById('grid-presentes');
+            gridPresentes.innerHTML = '';
+
+            if (presentesAniv.length === 0) {
+                gridPresentes.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-3xl border border-pink-100 shadow-sm p-8">
+                        <i class="fa-solid fa-gift text-4xl text-slate-300 mb-3"></i>
+                        <h4 class="text-base font-bold text-slate-700">Nenhum presente cadastrado</h4>
+                        <p class="text-xs text-slate-500 mt-1">Este aniversariante ainda não adicionou sugestões.</p>
+                    </div>
+                `;
+            } else {
+                presentesAniv.forEach(pres => {
+                    const precoFormatado = Number(pres.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const cardPres = document.createElement('div');
+                    cardPres.className = "bg-white rounded-3xl overflow-hidden shadow-sm border border-pink-100 hover:shadow-xl hover:border-pink-300 transition-all duration-300 flex flex-col justify-between group";
+                    
+                    cardPres.innerHTML = `
+                        <div>
+                            <div class="h-48 overflow-hidden bg-slate-100 relative">
+                                <img src="${pres.foto_presente || 'https://placehold.co/300x200/f43f5e/ffffff?text=Presente'}" onerror="this.src='https://placehold.co/300x200/f43f5e/ffffff?text=Presente'" alt="${pres.nome_presente}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-pink-600 shadow-md">
+                                    ${precoFormatado}
+                                </div>
+                            </div>
+                            <div class="p-5 space-y-2">
+                                <h4 class="font-bold text-base text-slate-900 group-hover:text-pink-600 transition-colors">${pres.nome_presente}</h4>
+                            </div>
+                        </div>
+                        <div class="p-5 pt-0">
+                            <button onclick='abrirModalPagamento(${JSON.stringify(pres).replace(/'/g, "&apos;")})' class="w-full bg-pink-600 hover:bg-pink-700 text-white font-semibold py-3 px-4 rounded-2xl text-xs shadow-md shadow-pink-200 transition-all flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-gift"></i>
+                                <span>Presentear</span>
+                            </button>
+                        </div>
+                    `;
+                    gridPresentes.appendChild(cardPres);
+                });
+            }
+
+            document.getElementById('view-home').classList.add('hidden');
+            document.getElementById('view-presentes').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function voltarParaHome() {
+            document.getElementById('view-presentes').classList.add('hidden');
+            document.getElementById('view-home').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- FLUXO DE PAGAMENTO & PIX ---
+        function abrirModalPagamento(pres) {
+            document.getElementById('modal-titulo-presente').innerText = pres.nome_presente;
+            const valorFmt = Number(pres.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('modal-sub-presente').innerText = `Valor: ${valorFmt}`;
+            document.getElementById('modal-beneficiario-pix').innerText = `Chave: ${aniversarianteAtual.chave_pix}`;
+
+            const pixString = gerarPayloadPix(aniversarianteAtual.chave_pix, aniversarianteAtual.nome, pres.valor, pres.nome_presente);
+            document.getElementById('input-pix-copia-cola').value = pixString;
+
+            const qrContainer = document.getElementById('qrcode-container');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: pixString,
+                width: 160,
+                height: 160,
+                colorDark: "#0f172a",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            const containerLink = document.getElementById('container-link-pagamento');
+            const linkExterno = document.getElementById('link-pagamento-externo');
+            if (pres.link_pagamento && pres.link_pagamento.trim() !== '') {
+                linkExterno.href = pres.link_pagamento;
+                containerLink.classList.remove('hidden');
+            } else {
+                containerLink.classList.add('hidden');
+            }
+
+            document.getElementById('modal-pagamento').classList.remove('hidden');
+        }
+
+        function fecharModal() {
+            document.getElementById('modal-pagamento').classList.add('hidden');
+        }
+
+        function copiarPix() {
+            const input = document.getElementById('input-pix-copia-cola');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+
+            const btn = document.getElementById('btn-copiar');
+            btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Copiado!';
+            btn.classList.remove('bg-pink-600', 'hover:bg-pink-700');
+            btn.classList.add('bg-emerald-600');
+
+            mostrarToast("Chave Pix Copia e Cola copiada com sucesso!");
+
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fa-solid fa-copy mr-1"></i> Copiar';
+                btn.classList.remove('bg-emerald-600');
+                btn.classList.add('bg-pink-600', 'hover:bg-pink-700');
+            }, 3000);
+        }
+
+        function gerarPayloadPix(chave, beneficiario, valor, descricao) {
+            return `00020126580014br.gov.bcb.pix0136${chave}520400005303986540${valor.length.toString().padStart(2, '0')}${valor}5802BR5925${beneficiario.substring(0,25)}6009SaoPaulo62070503***6304`;
+        }
+
+        // --- CONFIGURAÇÃO & GITHUB MODALS ---
+        function abrirConfiguracao() {
+            document.getElementById('input-url-csv').value = localStorage.getItem('url_csv_sheets') || LINK_CSV_PADRAO;
+            document.getElementById('modal-config').classList.remove('hidden');
+        }
+        function fecharConfiguracao() {
+            document.getElementById('modal-config').classList.add('hidden');
+        }
+        function salvarConfiguracaoURL() {
+            const urlCsv = document.getElementById('input-url-csv').value.trim();
+            if (urlCsv) {
+                localStorage.setItem('url_csv_sheets', urlCsv);
+                mostrarToast("Link salvo com sucesso!");
+                fecharConfiguracao();
+                carregarDados();
+            } else {
+                mostrarToast("Insira um link CSV válido.");
+            }
+        }
+
+        function abrirGuiaGithub() {
+            document.getElementById('modal-github').classList.remove('hidden');
+        }
+        function fecharGuiaGithub() {
+            document.getElementById('modal-github').classList.add('hidden');
+        }
+
+        function mostrarToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3500);
+        }
+
+        window.onload = function() {
+            carregarDados();
+        };
+    </script>
+</body>
+</html>
