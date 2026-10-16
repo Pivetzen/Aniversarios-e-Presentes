@@ -145,7 +145,7 @@
 
                     <!-- Copia e Cola -->
                     <div class="space-y-1">
-                        <label class="text-[11px] font-medium text-slate-500">Pix Copia e Cola:</label>
+                        <label class="text-[11px] font-medium text-slate-500">Pix Copia e Cola / Chave:</label>
                         <div class="flex items-center gap-2">
                             <input type="text" id="input-pix-copia-cola" readonly class="w-full bg-white border border-slate-200 text-slate-600 text-xs rounded-xl px-3 py-2.5 focus:outline-none font-mono select-all">
                             <button onclick="copiarPix()" id="btn-copiar" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-md shadow-pink-200 transition-all flex-shrink-0">
@@ -184,7 +184,6 @@
 
     <!-- Script Principal -->
     <script>
-        // Links das abas da Planilha em formato CSV público
         const URL_ANIVERSARIANTES = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQyCM4Ov2TW3qTz2Z6L-O_Iidp5zpoB_rqN4p9YJe-3EMdnCMfzA-Wy7yRmR63flW-62glHF9SVgc5b/pub?gid=0&single=true&output=csv";
         const URL_PRESENTES = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQyCM4Ov2TW3qTz2Z6L-O_Iidp5zpoB_rqN4p9YJe-3EMdnCMfzA-Wy7yRmR63flW-62glHF9SVgc5b/pub?gid=1078037004&single=true&output=csv";
 
@@ -192,15 +191,12 @@
         let presentes = [];
         let aniversarianteAtual = null;
 
-        // Imagem Padrão para Presente sem Foto Válida
         const DEFAULT_GIFT_IMG = "https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=400&auto=format&fit=crop&q=80";
 
-        // --- CARREGAMENTO SIMULTÂNEO DAS DUAS ABAS ---
         async function carregarDados() {
             try {
                 document.getElementById('loading-home').classList.remove('hidden');
                 
-                // Busca concorrente das duas abas
                 const [resAniv, resPres] = await Promise.all([
                     fetch(URL_ANIVERSARIANTES),
                     fetch(URL_PRESENTES)
@@ -221,7 +217,6 @@
             }
         }
 
-        // --- PARSER DA ABA ANIVERSARIANTES ---
         function parseCSVAniversariantes(text) {
             const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             const list = [];
@@ -242,7 +237,6 @@
             return list;
         }
 
-        // --- PARSER DA ABA PRESENTES ---
         function parseCSVPresentes(text) {
             const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             const list = [];
@@ -263,7 +257,6 @@
             return list;
         }
 
-        // --- RENDERIZAR ANIVERSARIANTES ---
         function renderizarAniversariantes() {
             const grid = document.getElementById('grid-aniversariantes');
             const emptyState = document.getElementById('empty-aniversariantes');
@@ -305,7 +298,6 @@
             });
         }
 
-        // --- SELECIONAR ANIVERSARIANTE ---
         function selecionarAniversariante(id) {
             aniversarianteAtual = aniversariantes.find(a => String(a.id).trim() === String(id).trim());
             if (!aniversarianteAtual) return;
@@ -314,7 +306,6 @@
             document.getElementById('perfil-foto').src = aniversarianteAtual.foto || 'https://placehold.co/120x120/f43f5e/ffffff?text=Foto';
             document.getElementById('perfil-mensagem').innerText = aniversarianteAtual.mensagem || 'Selecione um presente abaixo.';
 
-            // Filtragem direta pelo ID
             const presentesAniv = presentes.filter(p => String(p.aniversariante_id).trim() === String(id).trim());
             document.getElementById('contador-presentes').innerText = `${presentesAniv.length} item(ns)`;
 
@@ -376,13 +367,14 @@
             document.getElementById('modal-sub-presente').innerText = `Valor: ${valorFmt}`;
             document.getElementById('modal-beneficiario-pix').innerText = `Chave: ${aniversarianteAtual.chave_pix}`;
 
-            const pixString = gerarPayloadPix(aniversarianteAtual.chave_pix, aniversarianteAtual.nome, pres.valor, pres.nome_presente);
-            document.getElementById('input-pix-copia-cola').value = pixString;
+            // Correção para exibir a chave Pix exata de forma limpa e compatível com leitura de chave direta ou cópia
+            const chavePix = aniversarianteAtual.chave_pix;
+            document.getElementById('input-pix-copia-cola').value = chavePix;
 
             const qrContainer = document.getElementById('qrcode-container');
             qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
-                text: pixString,
+                text: chavePix,
                 width: 160,
                 height: 160,
                 colorDark: "#0f172a",
@@ -417,17 +409,13 @@
             btn.classList.remove('bg-pink-600', 'hover:bg-pink-700');
             btn.classList.add('bg-emerald-600');
 
-            mostrarToast("Chave Pix Copia e Cola copiada com sucesso!");
+            mostrarToast("Chave Pix copiada com sucesso!");
 
             setTimeout(() => {
                 btn.innerHTML = '<i class="fa-solid fa-copy mr-1"></i> Copiar';
                 btn.classList.remove('bg-emerald-600');
                 btn.classList.add('bg-pink-600', 'hover:bg-pink-700');
             }, 3000);
-        }
-
-        function gerarPayloadPix(chave, beneficiario, valor, descricao) {
-            return `00020126580014br.gov.bcb.pix0136${chave}520400005303986540${valor.length.toString().padStart(2, '0')}${valor}5802BR5925${beneficiario.substring(0,25)}6009SaoPaulo62070503***6304`;
         }
 
         function mostrarToast(msg) {
